@@ -1,0 +1,328 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_CAMERE 100
+#define MAX_REZERVARI 100
+#define CLEAR_SCREEN "cls"
+#define RED     "\x1b[31m"
+#define GREEN   "\x1b[32m"
+#define YELLOW  "\x1b[33m"
+#define CYAN    "\x1b[36m"
+#define RESET   "\x1b[0m"
+
+typedef struct {
+    int numar;
+    char tip[20];
+    int pret;
+    int rezervata;
+} Camera;
+
+typedef struct {
+    int numar_camera;
+    char client[30];
+} Rezervare;
+
+Camera camere[MAX_CAMERE];
+Rezervare rezervari[MAX_REZERVARI];
+int numar_camere = 0, numar_rezervari = 0;
+
+int is_valid_type(const char *tip) {
+    return strcmp(tip, "single") == 0 || strcmp(tip, "double") == 0 || strcmp(tip, "other") == 0;
+}
+
+void show_menu() {
+    system(CLEAR_SCREEN);
+    printf("- " CYAN "Hotel" RESET " Management -\n");
+    printf("1 - Adaugare camera\n");
+    printf("2 - Afisare camere disponibile\n");
+    printf("3 - Rezervare camera\n");
+    printf("4 - Stergere rezervare\n");
+    printf("5 - Afisare toate camerele\n");
+    printf("6 - Afisare rezervari\n");
+    printf("7 - Editare camera\n");
+    printf("8 - Cautare camera dupa tip\n");
+    printf("9 - Cautare rezervare dupa client\n");
+    printf("0 - Exit\n");
+    printf("-------------\n");
+}
+
+void load_rooms() {
+    FILE *file = fopen("camere1.txt", "r");
+    if (!file) return;
+    while (fscanf(file, "%d %s %d %d", &camere[numar_camere].numar, camere[numar_camere].tip,
+                  &camere[numar_camere].pret, &camere[numar_camere].rezervata) == 4) {
+        numar_camere++;
+    }
+    fclose(file);
+}
+
+void load_bookings() {
+    FILE *file = fopen("rezervari1.txt", "r");
+    if (!file) return;
+    while (fscanf(file, "%d %s", &rezervari[numar_rezervari].numar_camera,
+                  rezervari[numar_rezervari].client) == 2) {
+        numar_rezervari++;
+    }
+    fclose(file);
+}
+
+void save_rooms() {
+    FILE *file = fopen("camere1.txt", "w");
+    if (!file) return;
+    for (int i = 0; i < numar_camere; i++) {
+        fprintf(file, "%d %s %d %d\n", camere[i].numar, camere[i].tip,
+                camere[i].pret, camere[i].rezervata);
+    }
+    fclose(file);
+}
+
+void save_bookings() {
+    FILE *file = fopen("rezervari1.txt", "w");
+    if (!file) return;
+    for (int i = 0; i < numar_rezervari; i++) {
+        fprintf(file, "%d %s\n", rezervari[i].numar_camera, rezervari[i].client);
+    }
+    fclose(file);
+}
+
+void add_room() {
+
+    printf("- " YELLOW "Adaugare" RESET " Camera -\n");
+    if (numar_camere >= MAX_CAMERE) {
+        printf(RED "Limita de camere atinsa!\n" RESET);
+        return;
+    }
+
+    printf("Numar camera: ");
+    scanf("%d", &camere[numar_camere].numar);
+    getchar();
+
+    do {
+        printf("Tip camera (single/double/other): ");
+        scanf("%[^\n]", camere[numar_camere].tip);
+        getchar();
+        if (!is_valid_type(camere[numar_camere].tip)) {
+            printf(RED "Tip invalid! Incearca din nou.\n" RESET);
+        } else break;
+    } while (1);
+
+    do {
+        printf("Pret pe noapte: ");
+        scanf("%d", &camere[numar_camere].pret);
+        if (camere[numar_camere].pret <= 0) {
+            printf(RED "Pret invalid! Introdu un numar pozitiv.\n" RESET);
+        }
+    } while (camere[numar_camere].pret <= 0);
+
+    camere[numar_camere].rezervata = 0;
+    numar_camere++;
+    save_rooms();
+    printf(GREEN "Camera adaugata cu succes!\n" RESET);
+    getchar(); getchar();
+}
+
+void display_rooms() {
+
+    printf(YELLOW "- Camere Disponibile -\n" RESET);
+    int found = 0;
+    for (int i = 0; i < numar_camere; i++) {
+        if (!camere[i].rezervata) {
+            printf("Camera %d - Tip: %s - Pret: " GREEN "%d RON" RESET "/noapte\n",
+                   camere[i].numar, camere[i].tip, camere[i].pret);
+            found = 1;
+        }
+    }
+    if (!found) {
+        printf(RED "Nu sunt camere disponibile.\n" RESET);
+    }
+    getchar(); getchar();
+}
+
+void book_room() {
+
+    printf(YELLOW "- Rezervare Camera -\n" RESET);
+    int room_number, found = 0;
+    printf("Introduceti numarul camerei: ");
+    scanf("%d", &room_number);
+    getchar();
+    for (int i = 0; i < numar_camere; i++) {
+        if (camere[i].numar == room_number && !camere[i].rezervata) {
+            printf("Nume client: ");
+            scanf("%[^\n]", rezervari[numar_rezervari].client);
+            camere[i].rezervata = 1;
+            rezervari[numar_rezervari].numar_camera = room_number;
+            numar_rezervari++;
+            save_rooms();
+            save_bookings();
+            found = 1;
+            printf(GREEN "Camera rezervata cu succes!\n" RESET);
+            break;
+        }
+    }
+    if (!found) {
+        printf(RED "Camera nu este disponibila sau nu exista!\n" RESET);
+    }
+    getchar();
+}
+
+void delete_booking() {
+
+    printf(YELLOW "- Stergere Rezervare -\n" RESET);
+    int nr, found = 0;
+    printf("Introduceti numarul camerei: ");
+    scanf("%d", &nr);
+    for (int i = 0; i < numar_rezervari; i++) {
+        if (rezervari[i].numar_camera == nr) {
+            for (int j = 0; j < numar_camere; j++) {
+                if (camere[j].numar == nr) {
+                    camere[j].rezervata = 0;
+                    break;
+                }
+            }
+            for (int j = i; j < numar_rezervari - 1; j++) {
+                rezervari[j] = rezervari[j + 1];
+            }
+            numar_rezervari--;
+            save_rooms();
+            save_bookings();
+            printf(GREEN "Rezervarea a fost stearsa!\n" RESET);
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        printf(RED "Nu exista rezervare pentru aceasta camera.\n" RESET);
+    }
+    getchar(); getchar();
+}
+
+void display_all_rooms() {
+
+    printf(YELLOW "- Toate Camerele -\n" RESET);
+    for (int i = 0; i < numar_camere; i++) {
+        printf("Camera %d - Tip: %s - Pret: %d RON - %s\n",
+               camere[i].numar, camere[i].tip, camere[i].pret,
+               camere[i].rezervata ? RED "Rezervata" RESET : GREEN "Libera" RESET);
+    }
+    getchar(); getchar();
+}
+
+void display_all_bookings() {
+
+    printf(YELLOW "- Rezervari -\n" RESET);
+    if (numar_rezervari == 0) {
+        printf(RED "Nu exista rezervari.\n" RESET);
+    } else {
+        for (int i = 0; i < numar_rezervari; i++) {
+            printf("Camera %d - Client: %s\n", rezervari[i].numar_camera, rezervari[i].client);
+        }
+    }
+    getchar(); getchar();
+}
+
+void edit_room() {
+
+    int nr, found = 0;
+    printf(YELLOW "- Editare Camera -\n" RESET);
+    printf("Numar camera: ");
+    scanf("%d", &nr);
+    getchar();
+    for (int i = 0; i < numar_camere; i++) {
+        if (camere[i].numar == nr) {
+            do {
+                printf("Tip nou (single/double/other): ");
+                scanf("%[^\n]", camere[i].tip);
+                getchar();
+                if (!is_valid_type(camere[i].tip)) {
+                    printf(RED "Tip invalid! Incearca din nou.\n" RESET);
+                } else break;
+            } while (1);
+
+            do {
+                printf("Pret nou: ");
+                scanf("%d", &camere[i].pret);
+                if (camere[i].pret <= 0) {
+                    printf(RED "Pret invalid!\n" RESET);
+                }
+            } while (camere[i].pret <= 0);
+
+            save_rooms();
+            printf(GREEN "Camera modificata.\n" RESET);
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        printf(RED "Camera nu exista.\n" RESET);
+    }
+    getchar(); getchar();
+}
+
+void search_room_by_type() {
+
+    char tip[20];
+    int found = 0;
+    printf(YELLOW "- Cautare dupa Tip -\n" RESET);
+    printf("Introdu tipul: ");
+    scanf("%s", tip);
+    for (int i = 0; i < numar_camere; i++) {
+        if (strcmp(camere[i].tip, tip) == 0) {
+            printf("Camera %d - Pret: %d - %s\n",
+                   camere[i].numar, camere[i].pret,
+                   camere[i].rezervata ? RED "Rezervata" RESET : GREEN "Libera" RESET);
+            found = 1;
+        }
+    }
+    if (!found) {
+        printf(RED "Nu s-au gasit camere cu tipul %s.\n" RESET, tip);
+    }
+    getchar(); getchar();
+}
+
+void search_booking_by_client() {
+
+    char client[30];
+    int found = 0;
+    printf(YELLOW "- Cautare dupa Client -\n" RESET);
+    printf("Introdu numele: ");
+    scanf("%s", client);
+    for (int i = 0; i < numar_rezervari; i++) {
+        if (strcmp(rezervari[i].client, client) == 0) {
+            printf("Clientul %s are rezervare la camera %d\n", rezervari[i].client, rezervari[i].numar_camera);
+            found = 1;
+        }
+    }
+    if (!found) {
+        printf(RED "Nicio rezervare gasita pentru acest client.\n" RESET);
+    }
+    getchar(); getchar();
+}
+
+void menu(int option) {
+    switch (option) {
+        case 1: add_room(); break;
+        case 2: display_rooms(); break;
+        case 3: book_room(); break;
+        case 4: delete_booking(); break;
+        case 5: display_all_rooms(); break;
+        case 6: display_all_bookings(); break;
+        case 7: edit_room(); break;
+        case 8: search_room_by_type(); break;
+        case 9: search_booking_by_client(); break;
+        default: printf(RED "EXIT...\n" RESET);
+    }
+}
+
+int main() {
+    int option;
+    load_rooms();
+    load_bookings();
+    do {
+        show_menu();
+        printf("Introduceti optiunea: ");
+        scanf("%d", &option);
+        menu(option);
+    } while (option != 0);
+    return 0;
+}
